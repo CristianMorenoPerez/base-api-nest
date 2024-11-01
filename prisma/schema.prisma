@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// tablas de usurios relacionales
+
+model users {
+  id               Int                @id @default(autoincrement())
+  name             String
+  email            String             @unique
+  password         String
+  userTypeId       Int                @unique
+  UserType         userTypes?         @relation(fields: [userTypeId], references: [id])
+  Tenant           tenants?
+  user_permissions user_permissions[]
+  isActive         Boolean            @default(true)
+  createdBy        Int?
+  updatedAt        DateTime?          @db.DateTime(0)
+  createdAt        DateTime           @default(now())
+}
+
+model userTypes {
+  id               Int                @id @default(autoincrement())
+  name             String             @unique
+  user             users? // No se necesita especificar `fields` ni `references` aquí
+  user_permissions user_permissions[]
+  isActive         Boolean            @default(true)
+  createdBy        Int?
+  updatedAt        DateTime?          @db.DateTime(0)
+  createdAt        DateTime           @default(now())
+}
+
+model user_permissions {
+  id         Int        @id @default(autoincrement())
+  userId     Int?
+  user       users?     @relation(fields: [userId], references: [id])
+  userTypeId Int?
+  usertype   userTypes? @relation(fields: [userTypeId], references: [id])
+  optionId   Int
+  option     options    @relation(fields: [optionId], references: [id])
+  isActive   Boolean    @default(true)
+  createdBy  Int?
+  updatedAt  DateTime?  @db.DateTime(0)
+  createdAt  DateTime   @default(now())
+}
+
+model tenants {
+  id           Int         @id @default(autoincrement())
+  name         String
+  address      String
+  phone        String      @unique
+  email        String      @unique
+  tenantType   tenantTypes @relation(fields: [tenantTypeId], references: [id])
+  tenantTypeId Int         @unique
+  user         users       @relation(fields: [userId], references: [id])
+  userId       Int         @unique
+  isActive     Boolean     @default(true)
+  createdBy    Int?
+  updatedAt    DateTime?   @db.DateTime(0)
+  createdAt    DateTime    @default(now())
+}
+
+model tenantTypes {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  Tenants   tenants[]
+  isActive  Boolean   @default(true)
+  createdBy Int?
+  updatedAt DateTime? @db.DateTime(0)
+  createdAt DateTime  @default(now())
+}
+
+model sections {
+  id        Int       @id @default(autoincrement())
+  icon      String
+  code      String
+  name      String
+  isActive  Boolean   @default(true)
+  createdBy Int?
+  updatedAt DateTime? @db.DateTime(0)
+  createdAt DateTime  @default(now())
+  Options   options[]
+}
+
+model options {
+  id                 Int                  @id @default(autoincrement())
+  icon               String
+  code               String
+  name               String
+  path               String
+  sectionsId         Int
+  section            sections             @relation(fields: [sectionsId], references: [id])
+  option_permissions option_permissions[]
+  user_permissions   user_permissions[]
+  isActive           Boolean              @default(true)
+  createdBy          Int?
+  updatedAt          DateTime?            @db.DateTime(0)
+  createdAt          DateTime             @default(now())
+}
+
+model option_permissions {
+  id           Int         @id @default(autoincrement())
+  optionId     Int
+  option       options     @relation(fields: [optionId], references: [id])
+  permissionId Int
+  permission   permissions @relation(fields: [permissionId], references: [id])
+  isActive     Boolean     @default(true)
+  createdBy    Int?
+  updatedAt    DateTime?   @db.DateTime(0)
+  createdAt    DateTime    @default(now())
+}
+
+model permissions {
+  id                 Int                  @id @default(autoincrement())
+  code               String
+  name               String
+  isActive           Boolean              @default(true)
+  createdBy          Int?
+  updatedAt          DateTime?            @db.DateTime(0)
+  createdAt          DateTime             @default(now())
+  option_permissions option_permissions[]
+}
