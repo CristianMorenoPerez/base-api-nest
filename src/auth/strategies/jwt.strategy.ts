@@ -5,6 +5,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
 import { PrismaService } from 'prisma/prisma.service';
+import { authParserJson } from 'src/helper/auth.helper';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -26,15 +27,26 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
         const { id } = payload;
 
-        const user = await this.prisma.users.findUnique({ where: { id }, select: { id: true, email: true, password: true, isActive: true } });
+        const user = await this.prisma.users.findUnique({
+            where: { id }, select: {
+                id: true,
+                email: true
+            },
+        });
 
-        if (!user)
+        const dbResp = await this.prisma.$queryRaw`SELECT login(${user.email}) AS user`;
+
+        const userIn = dbResp[0].user
+
+
+
+        if (!userIn)
             throw new UnauthorizedException('Token not valid')
 
-        if (!user.isActive)
-            throw new UnauthorizedException('User is inactive, talk with an admin');
 
-        return user;
+
+
+        return userIn;
     }
 
 }

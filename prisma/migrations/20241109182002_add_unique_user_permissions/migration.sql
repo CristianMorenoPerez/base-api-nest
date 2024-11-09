@@ -1,0 +1,15 @@
+/*
+  Warnings:
+
+  - A unique constraint covering the columns `[userId,permissionId]` on the table `user_permissions` will be added. If there are existing duplicate values, this will fail.
+  - A unique constraint covering the columns `[userTypeId,permissionId]` on the table `user_permissions` will be added. If there are existing duplicate values, this will fail.
+
+*/
+-- DropIndex
+DROP INDEX "user_permissions_userId_userTypeId_optionId_key";
+
+-- CreateIndex
+CREATE UNIQUE INDEX "user_permissions_userId_permissionId_key" ON "user_permissions"("userId", "permissionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "user_permissions_userTypeId_permissionId_key" ON "user_permissions"("userTypeId", "permissionId");

@@ -6,6 +6,6 @@ import { AuthModule } from 'src/auth/auth.module';
 @Module({
   controllers: [OptionController],
   imports: [AuthModule],
-  providers: [OptionService],
+  providers: [OptionService,],
 })
 export class OptionModule { }

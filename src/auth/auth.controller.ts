@@ -6,10 +6,9 @@ import { IncomingHttpHeaders } from 'http';
 
 import { AuthService } from './auth.service';
 import { RawHeaders, GetUser, Auth } from './decorators';
-import { RoleProtected } from './decorators/role-protected.decorator';
 
 import { CreateUserDto, LoginUserDto } from './dto';
-import { UserRoleGuard } from './guards/user-role.guard';
+import { UserPermissionGuard } from './guards/user-permission.guard';
 import { ValidRoles } from './interfaces';
 import { IUser } from 'src/core/interfaces';
 
@@ -45,8 +44,7 @@ export class AuthController {
 
 
   @Get('private')
-  @UseGuards(AuthGuard())
-  @UseGuards(AuthGuard(), UserRoleGuard)
+  @Auth()
   testingPrivateRoute(
     @Req() request: Express.Request,
     @GetUser() user: IUser,
@@ -73,7 +71,7 @@ export class AuthController {
 
   @Get('private2')
   // @RoleProtected(ValidRoles.superUser, ValidRoles.admin)
-  @UseGuards(AuthGuard(), UserRoleGuard)
+  @UseGuards(AuthGuard(), UserPermissionGuard)
   privateRoute2(
     // @GetUser() user: User
   ) {

@@ -1,3 +1,4 @@
+import { functions } from './../config/function.db';
 import {
   BadRequestException,
   Injectable,
@@ -11,9 +12,11 @@ import * as bcrypt from 'bcrypt';
 import { LoginUserDto, CreateUserDto } from './dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { PrismaService } from 'prisma/prisma.service';
-import { IUser } from 'src/core/interfaces';
 import { log } from 'console';
-import { use } from 'passport';
+import { authParserJson } from 'src/helper/auth.helper';
+import { ResponseAuth } from './interfaces';
+import { ILogin } from './interfaces/login.interface';
+
 
 @Injectable()
 export class AuthService {
@@ -48,76 +51,27 @@ export class AuthService {
     }
   }
 
-  async login(loginUserDto: LoginUserDto) {
-    const { password, email } = loginUserDto;
+  async login(loginUserDto: LoginUserDto): Promise<ResponseAuth> {
+    try {
+      const { password, email } = loginUserDto;
+      const dbResp = await this.prisma.$queryRaw`SELECT login(${email}) AS user`;
+      const data: ILogin = dbResp[0].user
+      if (!data)
+        throw new UnauthorizedException('Credentials are not valid (email)');
 
-    const user = await this.prisma.users.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        password: true,
-        Tenant: { select: { name: true, email: true, phone: true, tenantType: { select: { name: true } } } },
-        user_permissions: { select: { option: { select: { code: true, name: true, path: true, option_permissions: { select: { permission: true } }, section: { select: { code: true, name: true, } } } } } }
-      },
-    });
+      if (!bcrypt.compareSync(password, data.password))
+        throw new UnauthorizedException('Credentials are not valid (password)');
 
+      delete data.password;
 
-    const sectionsMap = new Map();
-
-    user.user_permissions.forEach((userPermission) => {
-      const { option } = userPermission;
-      const { section, option_permissions } = option;
-
-      // Crear la estructura de la sección si no existe
-      if (!sectionsMap.has(section.code)) {
-        sectionsMap.set(section.code, {
-          code: section.code,
-          name: section.name,
-          options: []
-        });
-      }
-
-      // Obtener la sección y agregar la opción
-      const sectionEntry = sectionsMap.get(section.code);
-
-      // Transformar los permisos
-      const permissions = option_permissions.map((op) => ({
-        code: op.permission.code,
-        name: op.permission.name
-      }));
-
-      // Agregar la opción a la sección
-      sectionEntry.options.push({
-        name: option.name,
-        path: option.path,
-        permissions: permissions
-      });
-    });
-
-    // Convertir el Map a un array
-    const sections = Array.from(sectionsMap.values());
-
-    const response = {
-      id: user.id,
-      email: user.email,
-      tenant: user.Tenant,
-      sections: sections
+      return {
+        data,
+        token: this.getJwtToken({ id: data.id }),
+      };
+    } catch (error) {
+      this.handleDBErrors(error)
     }
 
-
-    if (!user)
-      throw new UnauthorizedException('Credentials are not valid (email)');
-
-    if (!bcrypt.compareSync(password, user.password))
-      throw new UnauthorizedException('Credentials are not valid (password)');
-
-    delete user.password;
-
-    return {
-      ...response,
-      token: this.getJwtToken({ id: user.id }),
-    };
   }
 
   // async checkAuthStatus( user: User ){
@@ -134,13 +88,25 @@ export class AuthService {
     return token;
   }
 
-  private handleDBErrors(error: any): never {
-    if (error.code === 'P2002')
+  private handleDBErrors(error: any): void {
+
+
+    if (error.status) {
+      throw new UnauthorizedException(error.response.message)
+    }
+
+
+    if (error?.code === 'P2002')
       throw new BadRequestException(
         'Ya existe un usuario con el correo electrocico proporsionado',
       );
+    if (error?.meta.code === 'P0001')
+      throw new BadRequestException(
+        error.meta.message.split(':')[1],
+      );
 
-    console.log(error);
+
+    // console.log(error);
 
     throw new InternalServerErrorException('Please check server logs');
   }

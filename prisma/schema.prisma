@@ -3,125 +3,135 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// tablas de usurios relacionales
+// Tablas de usuarios relacionales
 
 model users {
-  id               Int                @id @default(autoincrement())
+  id               String             @id @default(uuid()) // UUID para PostgreSQL
   name             String
   email            String             @unique
   password         String
-  userTypeId       Int                @unique
+  userTypeId       String?            @unique
   UserType         userTypes?         @relation(fields: [userTypeId], references: [id])
   Tenant           tenants?
   user_permissions user_permissions[]
   isActive         Boolean            @default(true)
-  createdBy        Int?
-  updatedAt        DateTime?          @db.DateTime(0)
+  createdBy        String? // UUID del usuario que lo creó
+  updatedAt        DateTime?          @db.Timestamp(0)
   createdAt        DateTime           @default(now())
 }
 
 model userTypes {
-  id               Int                @id @default(autoincrement())
+  id               String             @id @default(uuid()) // UUID
   name             String             @unique
-  user             users? // No se necesita especificar `fields` ni `references` aquí
+  tenantId         String
+  tenant           tenants            @relation(fields: [tenantId], references: [id])
+  user             users?
   user_permissions user_permissions[]
   isActive         Boolean            @default(true)
-  createdBy        Int?
-  updatedAt        DateTime?          @db.DateTime(0)
+  createdBy        String? // UUID del usuario que lo creó
+  updatedAt        DateTime?          @db.Timestamp(0)
   createdAt        DateTime           @default(now())
 }
 
 model user_permissions {
-  id         Int        @id @default(autoincrement())
-  userId     Int?
-  user       users?     @relation(fields: [userId], references: [id])
-  userTypeId Int?
-  usertype   userTypes? @relation(fields: [userTypeId], references: [id])
-  optionId   Int
-  option     options    @relation(fields: [optionId], references: [id])
-  isActive   Boolean    @default(true)
-  createdBy  Int?
-  updatedAt  DateTime?  @db.DateTime(0)
-  createdAt  DateTime   @default(now())
+  id           String      @id @default(uuid()) // UUID
+  userId       String?
+  user         users?      @relation(fields: [userId], references: [id])
+  userTypeId   String?
+  usertype     userTypes?  @relation(fields: [userTypeId], references: [id])
+  optionId     String
+  option       options     @relation(fields: [optionId], references: [id])
+  permissionId String
+  permissions  permissions @relation(fields: [permissionId], references: [id])
+  isActive     Boolean     @default(true)
+  createdBy    String? // UUID del usuario que lo creó
+  updatedAt    DateTime?   @db.Timestamp(0)
+  createdAt    DateTime    @default(now())
+
+  @@unique([userId, optionId, permissionId])
+  @@unique([userTypeId, optionId, permissionId])
 }
 
 model tenants {
-  id           Int         @id @default(autoincrement())
+  id           String      @id @default(uuid()) // UUID
   name         String
   address      String
   phone        String      @unique
   email        String      @unique
+  userTypes    userTypes[]
+  tenantTypeId String
   tenantType   tenantTypes @relation(fields: [tenantTypeId], references: [id])
-  tenantTypeId Int         @unique
+  userId       String      @unique
   user         users       @relation(fields: [userId], references: [id])
-  userId       Int         @unique
   isActive     Boolean     @default(true)
-  createdBy    Int?
-  updatedAt    DateTime?   @db.DateTime(0)
+  createdBy    String? // UUID del usuario que lo creó
+  updatedAt    DateTime?   @db.Timestamp(0)
   createdAt    DateTime    @default(now())
 }
 
 model tenantTypes {
-  id        Int       @id @default(autoincrement())
+  id        String    @id @default(uuid()) // UUID
   name      String    @unique
   Tenants   tenants[]
   isActive  Boolean   @default(true)
-  createdBy Int?
-  updatedAt DateTime? @db.DateTime(0)
+  createdBy String? // UUID del usuario que lo creó
+  updatedAt DateTime? @db.Timestamp(0)
   createdAt DateTime  @default(now())
 }
 
 model sections {
-  id        Int       @id @default(autoincrement())
+  id        String    @id @default(uuid()) // UUID
   icon      String
   code      String
   name      String
+  path      String?
   isActive  Boolean   @default(true)
-  createdBy Int?
-  updatedAt DateTime? @db.DateTime(0)
+  createdBy String? // UUID del usuario que lo creó
+  updatedAt DateTime? @db.Timestamp(0)
   createdAt DateTime  @default(now())
   Options   options[]
 }
 
 model options {
-  id                 Int                  @id @default(autoincrement())
+  id                 String               @id @default(uuid()) // UUID
   icon               String
   code               String
   name               String
   path               String
-  sectionsId         Int
+  sectionsId         String
   section            sections             @relation(fields: [sectionsId], references: [id])
   option_permissions option_permissions[]
   user_permissions   user_permissions[]
   isActive           Boolean              @default(true)
-  createdBy          Int?
-  updatedAt          DateTime?            @db.DateTime(0)
+  createdBy          String? // UUID del usuario que lo creó
+  updatedAt          DateTime?            @db.Timestamp(0)
   createdAt          DateTime             @default(now())
 }
 
 model option_permissions {
-  id           Int         @id @default(autoincrement())
-  optionId     Int
+  id           String      @id @default(uuid()) // UUID
+  optionId     String
   option       options     @relation(fields: [optionId], references: [id])
-  permissionId Int
+  permissionId String
   permission   permissions @relation(fields: [permissionId], references: [id])
   isActive     Boolean     @default(true)
-  createdBy    Int?
-  updatedAt    DateTime?   @db.DateTime(0)
+  createdBy    String? // UUID del usuario que lo creó
+  updatedAt    DateTime?   @db.Timestamp(0)
   createdAt    DateTime    @default(now())
 }
 
 model permissions {
-  id                 Int                  @id @default(autoincrement())
+  id                 String               @id @default(uuid()) // UUID
   code               String
   name               String
-  isActive           Boolean              @default(true)
-  createdBy          Int?
-  updatedAt          DateTime?            @db.DateTime(0)
-  createdAt          DateTime             @default(now())
+  user_permissions   user_permissions[]
   option_permissions option_permissions[]
+  isActive           Boolean              @default(true)
+  createdBy          String? // UUID del usuario que lo creó
+  updatedAt          DateTime?            @db.Timestamp(0)
+  createdAt          DateTime             @default(now())
 }
