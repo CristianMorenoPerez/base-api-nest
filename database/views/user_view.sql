@@ -17,10 +17,10 @@ SELECT COALESCE(t2."userId", t0.id) AS user_id,
     t2."permissionId",
     t5.code AS permission_code,
     t5.name AS permission
-FROM users t0
-    JOIN "userTypes" t1 ON t0."userTypeId" = t1.id
-    LEFT JOIN user_permissions t2 ON (t0.id = t2."userId" OR t1.id = t2."userTypeId") AND t2."isActive"
+FROM public.users t0
+    JOIN public."userTypes" t1 ON t0."userTypeId" = t1.id
+    LEFT JOIN public.user_permissions t2 ON (t0.id = t2."userId" OR t1.id = t2."userTypeId") AND t2."isActive"
 IS TRUE
-     LEFT JOIN options t3 ON t2."optionId" = t3.id
-     LEFT JOIN sections t4 ON t3."sectionsId" = t4.id
-     LEFT JOIN permissions t5 ON t2."permissionId" = t5.id;
+    LEFT JOIN public.options t3 ON t2."optionId" = t3.id
+    LEFT JOIN public.sections t4 ON t3."sectionsId" = t4.id
+    LEFT JOIN public.permissions t5 ON t2."permissionId" = t5.id;

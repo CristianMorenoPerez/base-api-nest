@@ -21,16 +21,16 @@ export class TenantTypesController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.tenantTypesService.findOne(+id);
+    return this.tenantTypesService.findOne(id);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateTenantTypeDto: UpdateTenantTypeDto) {
-    return this.tenantTypesService.update(+id, updateTenantTypeDto);
+    return this.tenantTypesService.update(id, updateTenantTypeDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.tenantTypesService.remove(+id);
+    return this.tenantTypesService.remove(id);
   }
 }

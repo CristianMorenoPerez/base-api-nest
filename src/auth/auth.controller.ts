@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Req, Headers, SetMetadata } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Req, Headers, SetMetadata, Res } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { IncomingHttpHeaders } from 'http';
@@ -9,8 +9,9 @@ import { RawHeaders, GetUser, Auth } from './decorators';
 
 import { CreateUserDto, LoginUserDto } from './dto';
 import { UserPermissionGuard } from './guards/user-permission.guard';
-import { ValidRoles } from './interfaces';
+import { ResponseAuth, ValidRoles } from './interfaces';
 import { IUser } from 'src/core/interfaces';
+import { Response } from 'express';
 
 @ApiTags('authentication')
 @Controller('auth')
@@ -30,8 +31,20 @@ export class AuthController {
   @Post('login')
   @ApiResponse({ status: 201, description: 'login ', type: LoginUserDto })
   @ApiResponse({ status: 400, description: 'peticion no ejecutada' })
-  loginUser(@Body() loginUserDto: LoginUserDto) {
-    return this.authService.login(loginUserDto);
+  async loginUser(@Body() loginUserDto: LoginUserDto, @Res() resp: Response) {
+    let response: ResponseAuth = await this.authService.login(loginUserDto);
+
+
+    resp.cookie('token', response.token, { httpOnly: true, secure: false, sameSite: 'strict', path: '/' });
+    resp.cookie('refresh_token', response.refreshToken, { httpOnly: true, secure: false, sameSite: 'strict', path: '/', });
+
+
+    delete response.token;
+    delete response.refreshToken
+
+    resp.send(response);
+
+
   }
 
   // @Get('check-status')
@@ -54,7 +67,6 @@ export class AuthController {
     @Headers() headers: IncomingHttpHeaders,
   ) {
 
-    console.log(request);
 
     return {
       ok: true,

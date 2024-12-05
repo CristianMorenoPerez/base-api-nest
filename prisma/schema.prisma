@@ -7,131 +7,127 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Tablas de usuarios relacionales
-
 model users {
-  id               String             @id @default(uuid()) // UUID para PostgreSQL
-  name             String
-  email            String             @unique
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String             @db.VarChar(60)
+  email            String             @unique(map: "uq_users_email") @db.VarChar(150)
   password         String
-  userTypeId       String?            @unique
-  UserType         userTypes?         @relation(fields: [userTypeId], references: [id])
-  Tenant           tenants?
-  user_permissions user_permissions[]
+  userTypeId       String             @db.Uuid
   isActive         Boolean            @default(true)
-  createdBy        String? // UUID del usuario que lo creó
+  createdBy        String?            @db.Uuid
   updatedAt        DateTime?          @db.Timestamp(0)
   createdAt        DateTime           @default(now())
-}
-
-model userTypes {
-  id               String             @id @default(uuid()) // UUID
-  name             String             @unique
-  tenantId         String
-  tenant           tenants            @relation(fields: [tenantId], references: [id])
-  user             users?
+  userTenants      userTenants[]
   user_permissions user_permissions[]
-  isActive         Boolean            @default(true)
-  createdBy        String? // UUID del usuario que lo creó
-  updatedAt        DateTime?          @db.Timestamp(0)
-  createdAt        DateTime           @default(now())
+  userType         userTypes          @relation(fields: [userTypeId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_type")
 }
 
-model user_permissions {
-  id           String      @id @default(uuid()) // UUID
-  userId       String?
-  user         users?      @relation(fields: [userId], references: [id])
-  userTypeId   String?
-  usertype     userTypes?  @relation(fields: [userTypeId], references: [id])
-  optionId     String
-  option       options     @relation(fields: [optionId], references: [id])
-  permissionId String
-  permissions  permissions @relation(fields: [permissionId], references: [id])
-  isActive     Boolean     @default(true)
-  createdBy    String? // UUID del usuario que lo creó
-  updatedAt    DateTime?   @db.Timestamp(0)
-  createdAt    DateTime    @default(now())
+model userTenants {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid
+  tenantId  String   @db.Uuid
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  tenant    tenants  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, optionId, permissionId])
-  @@unique([userTypeId, optionId, permissionId])
+  @@unique([userId, tenantId])
 }
 
 model tenants {
-  id           String      @id @default(uuid()) // UUID
-  name         String
-  address      String
-  phone        String      @unique
-  email        String      @unique
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String        @db.VarChar(60)
+  address      String        @db.VarChar(80)
+  phone        String        @db.VarChar(15)
+  email        String        @unique(map: "uq_tenants_email") @db.VarChar(150)
+  tenantTypeId String        @db.Uuid
+  isActive     Boolean       @default(true)
+  createdBy    String?       @db.Uuid
+  updatedAt    DateTime?     @db.Timestamp(0)
+  createdAt    DateTime      @default(now())
+  tenantType   tenantTypes   @relation(fields: [tenantTypeId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_tenant_tenanttype")
+  userTenants  userTenants[]
   userTypes    userTypes[]
-  tenantTypeId String
-  tenantType   tenantTypes @relation(fields: [tenantTypeId], references: [id])
-  userId       String      @unique
-  user         users       @relation(fields: [userId], references: [id])
+}
+
+model userTypes {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String             @db.VarChar(60)
+  tenantId         String             @db.Uuid
+  isActive         Boolean            @default(true)
+  createdBy        String?            @db.Uuid
+  updatedAt        DateTime?          @db.Timestamp(0)
+  createdAt        DateTime           @default(now())
+  tenant           tenants            @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_usertypes_tenant")
+  user_permissions user_permissions[]
+  users            users[]
+
+  @@unique([name, tenantId], map: "uq_usertypes_name_tenant")
+}
+
+model user_permissions {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String?     @db.Uuid
+  userTypeId   String?     @db.Uuid
+  optionId     String      @db.Uuid
+  permissionId String      @db.Uuid
   isActive     Boolean     @default(true)
-  createdBy    String? // UUID del usuario que lo creó
+  createdBy    String?     @db.Uuid
   updatedAt    DateTime?   @db.Timestamp(0)
   createdAt    DateTime    @default(now())
+  option       options     @relation(fields: [optionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_userpermissions_option")
+  permissions  permissions @relation(fields: [permissionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_userpermissions_permission")
+  user         users?      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_userpermissions_user")
+  usertype     userTypes?  @relation(fields: [userTypeId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_userpermissions_usertype")
+
+  @@unique([userId, userTypeId, optionId, permissionId], map: "uq_user_permissions")
 }
 
 model tenantTypes {
-  id        String    @id @default(uuid()) // UUID
-  name      String    @unique
-  Tenants   tenants[]
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String    @db.VarChar(60)
   isActive  Boolean   @default(true)
-  createdBy String? // UUID del usuario que lo creó
+  createdBy String?   @db.Uuid
   updatedAt DateTime? @db.Timestamp(0)
   createdAt DateTime  @default(now())
+  Tenants   tenants[]
 }
 
 model sections {
-  id        String    @id @default(uuid()) // UUID
-  icon      String
-  code      String
-  name      String
-  path      String?
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  icon      String    @db.VarChar(40)
+  code      String    @unique(map: "uq_sections_code") @db.VarChar(20)
+  name      String    @db.VarChar(60)
+  path      String?   @db.VarChar(40)
   isActive  Boolean   @default(true)
-  createdBy String? // UUID del usuario que lo creó
+  createdBy String?   @db.Uuid
   updatedAt DateTime? @db.Timestamp(0)
   createdAt DateTime  @default(now())
   Options   options[]
 }
 
 model options {
-  id                 String               @id @default(uuid()) // UUID
-  icon               String
-  code               String
-  name               String
-  path               String
-  sectionsId         String
-  section            sections             @relation(fields: [sectionsId], references: [id])
-  option_permissions option_permissions[]
-  user_permissions   user_permissions[]
-  isActive           Boolean              @default(true)
-  createdBy          String? // UUID del usuario que lo creó
-  updatedAt          DateTime?            @db.Timestamp(0)
-  createdAt          DateTime             @default(now())
-}
-
-model option_permissions {
-  id           String      @id @default(uuid()) // UUID
-  optionId     String
-  option       options     @relation(fields: [optionId], references: [id])
-  permissionId String
-  permission   permissions @relation(fields: [permissionId], references: [id])
-  isActive     Boolean     @default(true)
-  createdBy    String? // UUID del usuario que lo creó
-  updatedAt    DateTime?   @db.Timestamp(0)
-  createdAt    DateTime    @default(now())
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  icon             String             @db.VarChar(40)
+  code             String             @unique(map: "uq_options_code") @db.VarChar(20)
+  name             String             @db.VarChar(60)
+  path             String             @db.VarChar(40)
+  sectionsId       String             @db.Uuid
+  isActive         Boolean            @default(true)
+  createdBy        String?            @db.Uuid
+  updatedAt        DateTime?          @db.Timestamp(0)
+  createdAt        DateTime           @default(now())
+  section          sections           @relation(fields: [sectionsId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_options_section")
+  user_permissions user_permissions[]
 }
 
 model permissions {
-  id                 String               @id @default(uuid()) // UUID
-  code               String
-  name               String
-  user_permissions   user_permissions[]
-  option_permissions option_permissions[]
-  isActive           Boolean              @default(true)
-  createdBy          String? // UUID del usuario que lo creó
-  updatedAt          DateTime?            @db.Timestamp(0)
-  createdAt          DateTime             @default(now())
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code             String             @unique(map: "uq_permissions_code") @db.VarChar(20)
+  name             String             @db.VarChar(60)
+  isActive         Boolean            @default(true)
+  createdBy        String?            @db.Uuid
+  updatedAt        DateTime?          @db.Timestamp(0)
+  createdAt        DateTime           @default(now())
+  user_permissions user_permissions[]
 }

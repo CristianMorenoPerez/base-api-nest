@@ -1,11 +1,12 @@
-import { IUserType, ITenant, ITenantType, ISection } from "src/core/interfaces";
+import { ISection } from "src/configuration/interfaces";
+import { IUserType, ITenant, ITenantType, } from "src/core/interfaces";
 
 export interface ILogin {
     id: string,
     email: string,
     password: string;
     userType: IUserType,
-    tenant: ITenant,
+    tenants: ITenant[],
     tenantType: ITenantType,
     permissions: ISection[];
 }

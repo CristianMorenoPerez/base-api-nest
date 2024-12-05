@@ -1,8 +1,8 @@
-import { functions } from './../config/function.db';
+
 import {
-  BadRequestException,
   Injectable,
-  InternalServerErrorException,
+  Logger,
+  NotAcceptableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -12,18 +12,23 @@ import * as bcrypt from 'bcrypt';
 import { LoginUserDto, CreateUserDto } from './dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { PrismaService } from 'prisma/prisma.service';
-import { log } from 'console';
-import { authParserJson } from 'src/helper/auth.helper';
 import { ResponseAuth } from './interfaces';
 import { ILogin } from './interfaces/login.interface';
+import { ConfigService } from '@nestjs/config';
+import { ErrorHelper } from 'src/helper/errors.helper';
+
 
 
 @Injectable()
 export class AuthService {
+
+
+
   constructor(
     private prisma: PrismaService,
 
     private readonly jwtService: JwtService,
+    private configService: ConfigService
   ) { }
 
   async create(createUserDto: CreateUserDto) {
@@ -33,81 +38,82 @@ export class AuthService {
       const user = await this.prisma.users.create({
         data: {
           ...userData,
+          userTypeId: '2fa1238c-322f-423e-9c1e-50589ef1bb13',
           password: bcrypt.hashSync(password, 10),
         },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          Tenant: true
-        },
+        // select: {
+        //   id: true,
+        //   name: true,
+        //   email: true,
+        //   // Tenant: true
+        // },
       });
 
       return user;
     } catch (error) {
       console.log(error);
 
-      this.handleDBErrors(error);
+      ErrorHelper.handleDbError(error)
     }
   }
 
   async login(loginUserDto: LoginUserDto): Promise<ResponseAuth> {
-    try {
-      const { password, email } = loginUserDto;
-      const dbResp = await this.prisma.$queryRaw`SELECT login(${email}) AS user`;
-      const data: ILogin = dbResp[0].user
-      if (!data)
-        throw new UnauthorizedException('Credentials are not valid (email)');
+    const { password, email } = loginUserDto;
+    const dbResp = await this.prisma.$queryRaw`SELECT login(${email}) AS user`;
+    const data: ILogin = dbResp[0].user
+    if (!data)
+      throw new UnauthorizedException('Credentials are not valid (email)');
 
-      if (!bcrypt.compareSync(password, data.password))
-        throw new UnauthorizedException('Credentials are not valid (password)');
+    if (!bcrypt.compareSync(password, data.password))
+      throw new UnauthorizedException('Credentials are not valid (password)');
 
-      delete data.password;
+    delete data.password;
 
-      return {
-        data,
-        token: this.getJwtToken({ id: data.id }),
-      };
-    } catch (error) {
-      this.handleDBErrors(error)
-    }
+    return {
+      data,
+      token: this.getJwtToken({ id: data.id }, '15m'),
+      refreshToken: this.getRefreshToken({ id: data.id }, '4h')
+    };
+
 
   }
 
-  // async checkAuthStatus( user: User ){
 
-  //   return {
-  //     user: user,
-  //     token: this.getJwtToken({ id: user.id })
-  //   };
 
-  // }
 
-  private getJwtToken(payload: JwtPayload) {
-    const token = this.jwtService.sign(payload);
+  getJwtToken(payload: JwtPayload, expireInToken: string = '15m') {
+    const token = this.jwtService.sign(payload, { expiresIn: expireInToken });
     return token;
   }
 
-  private handleDBErrors(error: any): void {
-
-
-    if (error.status) {
-      throw new UnauthorizedException(error.response.message)
-    }
-
-
-    if (error?.code === 'P2002')
-      throw new BadRequestException(
-        'Ya existe un usuario con el correo electrocico proporsionado',
-      );
-    if (error?.meta.code === 'P0001')
-      throw new BadRequestException(
-        error.meta.message.split(':')[1],
-      );
-
-
-    // console.log(error);
-
-    throw new InternalServerErrorException('Please check server logs');
+  getRefreshToken(payload: JwtPayload, expireInToken: string = '7d') {
+    return this.jwtService.sign(payload, {
+      secret: this.configService.get('JWT_REFRESH_SECRET'),
+      expiresIn: expireInToken,
+    });
   }
+
+  // Verificar access token
+  verifyAccessToken(token: string) {
+    try {
+      return this.jwtService.verify(token, {
+        secret: this.configService.get('JWT_SECRET'),
+      });
+    } catch (error) {
+      throw new UnauthorizedException('Access token is invalid or expired');
+    }
+  }
+
+  // Verificar refresh token
+  verifyRefreshToken(token: string) {
+    try {
+      return this.jwtService.verify(token, {
+        secret: this.configService.get('JWT_REFRESH_SECRET'),
+      });
+    } catch (error) {
+      throw new UnauthorizedException('Refresh token is invalid or expired');
+    }
+  }
+
+
 }

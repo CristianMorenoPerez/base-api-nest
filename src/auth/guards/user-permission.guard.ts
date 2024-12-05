@@ -18,20 +18,20 @@ export class UserPermissionGuard implements CanActivate {
     const url = req.originalUrl.split('/')[2];
 
     if (!user) throw new InternalServerErrorException('error desconocido')
-    if (!user.tenant) throw new ForbiddenException("No tienes un tenant asignado ")
+    if (!user.tenants) throw new ForbiddenException("No tienes un tenant asignado ")
     if (user.permissions?.length === 0) throw new ForbiddenException("No tienes permisos asignados")
     const permissionIn: string = this.reflector.get(META_PERMISSION, context.getHandler())
 
 
 
     const option = user.permissions
-      .flatMap(section => section.options)
+      .flatMap(section => section.Options)
       .find(option => option.path === url);
 
     if (!option) throw new ForbiddenException("Esta opción no ha sido asignada a tus permisos");
 
     const perm = user.permissions
-      .flatMap(section => section.options)
+      .flatMap(section => section.Options)
       .flatMap(option => option.permissions)
       .find(permission => permission.code == permissionIn);
     if (!perm) throw new ForbiddenException("No tienes acceso a este servicio")

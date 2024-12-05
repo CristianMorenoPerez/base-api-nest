@@ -7,13 +7,14 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PrismaService } from 'prisma/prisma.service';
+import { CommonModule } from 'src/common/common.module';
 
 @Module({
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, PrismaService],
   imports: [
     ConfigModule,
-
+    CommonModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
 
     JwtModule.registerAsync({
@@ -23,13 +24,13 @@ import { PrismaService } from 'prisma/prisma.service';
         return {
           secret: configService.get('JWT_SECRET'),
           signOptions: {
-            expiresIn: '2h'
+            expiresIn: '15m'
           }
         }
       }
     })
 
   ],
-  exports: [JwtStrategy, PassportModule, JwtModule]
+  exports: [JwtStrategy, PassportModule, JwtModule, AuthService]
 })
 export class AuthModule { }
